@@ -128,7 +128,7 @@ void conn::process(){
 bool conn::process_read(){
     Pack json(buffer);
     string to = json.get_to();
-    if(json.get_type() == "message"){
+    if(json.get_type() == MSG){
         if(conns == nullptr) return false;
         int i=0;
         for(;i<max_users;i++){

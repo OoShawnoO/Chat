@@ -6,30 +6,40 @@
 #include <vector>
 
 using namespace std;
+
+enum VERSION{
+        STANDARD = 0,
+};
+enum TYPE{
+    MSG = 0,
+    LOGIN,
+    GETONLINE,
+};
+
 class Pack{
+public:
+    Pack(VERSION _version,string _from,string _to,string _content,TYPE _type)
+    :version(_version),from(_from),to(_to),content(_content),type(_type)
+    {
+        size = content.size();
+    }
+
+    Pack(string package);
+    string Dump();
+    bool Load(string package);
+    int get_size();
+    VERSION& get_version();
+    string& get_from();
+    string& get_to();
+    string& get_content();
+    TYPE& get_type();
 private:
-    string version;
+    VERSION version;
     string from;
     string to;
     string content;
     int size;
-    string type;
-public:
-    Pack(string _version,string _from,string _to,string _content,string _type)
-    :version(_version),from(_from),to(_to),content(_content),type(_type)
-    {
-    }
-
-    Pack(string package);
-
-    string Dump();
-    bool Load(string package);
-    int get_size();
-    string& get_version();
-    string& get_from();
-    string& get_to();
-    string& get_content();
-    string& get_type();
+    TYPE type;
 };
 
 Pack::Pack(string package){
@@ -39,8 +49,8 @@ Pack::Pack(string package){
 string Pack::Dump(){
     string pack;
     pack += "{";
-    pack += "version:" + version + "\r\n";
-    pack += "type:" + type + "\r\n";
+    pack += "version:" + to_string(version) + "\r\n";
+    pack += "type:" + to_string(type) + "\r\n";
     pack += "from:" + from + "\r\n";
     pack += "to:" + to + "\r\n";
     pack += "size:" + to_string(size) + "\r\n";
@@ -61,8 +71,8 @@ bool Pack::Load(string package){
     for(auto x : v){
         pos = x.find(":");
         string attr = x.substr(0,pos);
-        if(attr == "version") version = x.substr(pos+1);
-        else if(attr == "type") type = x.substr(pos+1);
+        if(attr == "version") version = static_cast<VERSION>(atoi(x.substr(pos+1).c_str()));
+        else if(attr == "type") type = static_cast<TYPE>(atoi(x.substr(pos+1).c_str()));
         else if(attr == "from") from = x.substr(pos+1);
         else if(attr == "to") to = x.substr(pos+1);
         else if(attr == "size") size = atoi(x.substr(pos+1).c_str());
@@ -75,7 +85,7 @@ bool Pack::Load(string package){
     return true;
 }
 
-string& Pack::get_version(){
+VERSION& Pack::get_version(){
     return version;
 }
 string& Pack::get_from(){
@@ -90,7 +100,7 @@ int Pack::get_size(){
 string& Pack::get_content(){
     return content;
 }
-string& Pack::get_type(){
+TYPE& Pack::get_type(){
     return type;
 }
 
