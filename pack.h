@@ -14,6 +14,7 @@ enum TYPE{
     MSG = 0,
     LOGIN,
     GETONLINE,
+    ERR,
 };
 
 class Pack{
@@ -27,7 +28,7 @@ public:
     Pack(string package);
     string Dump();
     bool Load(string package);
-    int get_size();
+    int& get_size();
     VERSION& get_version();
     string& get_from();
     string& get_to();
@@ -94,7 +95,7 @@ string& Pack::get_from(){
 string& Pack::get_to(){
     return to;
 }
-int Pack::get_size(){
+int& Pack::get_size(){
     return size;
 }
 string& Pack::get_content(){

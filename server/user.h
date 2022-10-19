@@ -9,6 +9,7 @@
 #include <string>
 #include <iostream>
 #include <fcntl.h>
+#include <unordered_map>
 
 using namespace std;
 const int max_users = 10000;
@@ -21,6 +22,10 @@ private:
 public:
     static int user_count;
     static user* users;
+    user(){}
+    user(string _username,string _password){
+        init(_username,_password);
+    }
     void init(string _name,string _password){
         name = _name;
         password = _password;
@@ -34,5 +39,6 @@ public:
 
 int user::user_count = 0;
 user* user::users = new user[max_users];
+user* huzhida = new user("huzhida","huzhida");
 
 #endif

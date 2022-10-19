@@ -4,8 +4,6 @@
 #include "user.h"
 #include "pack.h"
 
-extern conn* conns;
-
 const int BUFSIZE = 2048;
 
 class conn{
@@ -17,22 +15,26 @@ private:
     };
     STATUS status;
     int fd;
+    int tofd;
     sockaddr_in address;
     user* user;
     char readBuf[BUFSIZE];
     char writeBuf[BUFSIZE];
-    string buffer;
+    string readCache;
+    string writeCache;
+    Pack* package;
     int readIndex;
     int writeIndex;
     int bytesToSend;
 public:
     static int epollfd;
     static int conn_count;
+    static unordered_map<string,conn*> online;
 
     string get_username();
     void init(int fd,sockaddr_in* caddr);
     void init();
-    int login(string name,string password);
+    bool login(string name,string password);
     void close();
     bool read();
     bool write();
@@ -82,20 +84,39 @@ void conn::init(int _fd,sockaddr_in* caddr){
     init();
 }
 void conn::init(){
+    tofd = -1;
     bzero(readBuf,BUFSIZE);
     bzero(writeBuf,BUFSIZE);
     readIndex = 0;
     writeIndex = 0;
     bytesToSend = 0;
     status = FREE;
-    buffer.clear();
+    readCache.clear();
+    writeCache.clear();
+    user = nullptr;
+    if(package){
+        delete package;
+        package = nullptr;
+    }
 }
 void conn::close(){
+    if(user){
+        online.erase(online.find(user->get_name()));
+    }
     if(fd != -1){
         removeEvent(epollfd,fd);
         fd = -1;
         conn_count--;
     }
+}
+bool conn::login(string username,string password){
+    for(int i=0;i<user::user_count;i++){
+        if(user::users[i].get_name() == username && user::users[i].get_password() == password){
+            online[username] = this;
+            return true;
+        }
+    }
+    return false;
 }
 string conn::get_username(){
     if(user){
@@ -108,17 +129,40 @@ bool conn::read(){
     while(true){
         int ret = ::read(fd,readBuf,sizeof(readBuf));
         if(ret == -1){
+            //没有后续数据送达
             if(errno == EAGAIN || errno == EWOULDBLOCK) break;
             return false;
         }else if(ret == 0){
             return false;
         }
-        buffer += readBuf;
+        readCache += readBuf;
     }
     return true;
 }
 bool conn::write(){
-    
+    while(true){
+        if(writeIndex + sizeof(writeBuf) > writeCache.size()){
+            memcpy(writeBuf,writeCache.substr(writeIndex).c_str(),writeCache.size()-writeIndex);
+            bytesToSend = writeCache.size()-writeIndex;
+        }else{
+            memcpy(writeBuf,writeCache.substr(writeIndex,sizeof(writeBuf)+writeIndex).c_str(),sizeof(writeBuf));
+            bytesToSend = BUFSIZE;
+        }
+        
+        int ret = ::write(tofd,writeBuf,bytesToSend);
+        if(ret == -1){
+            if(errno == EAGAIN){
+                modEvent(epollfd,fd,EPOLLOUT);
+                return true;
+            }
+            return false;
+        }
+        writeIndex += bytesToSend;
+        if(writeIndex >= writeCache.size()){
+            modEvent(epollfd,fd,EPOLLIN);
+            return true;
+        }
+    }
 }
 
 void conn::process(){
@@ -126,24 +170,76 @@ void conn::process(){
     if(!process_write()) close();
 }
 bool conn::process_read(){
-    Pack json(buffer);
-    string to = json.get_to();
-    if(json.get_type() == MSG){
-        if(conns == nullptr) return false;
-        int i=0;
-        for(;i<max_users;i++){
-            if(conns[i].get_username() == to){
-                break;
+    string p = readCache.substr(readCache.find_first_of("{"),readCache.find_first_of("}")+1);
+    readCache = readCache.substr(readCache.find_first_of("}")+1);
+
+    package = new Pack(p);
+    switch(package->get_type()){
+        case MSG : {
+            if(user && user->get_name() == package->get_from()){
+                string username = package->get_to();
+                if(online.find(username) == online.end()){
+                    package->get_type() = ERR;
+                    package->get_to() = package->get_from();
+                    package->get_content() = "User Not OnLine or User Not Exist.";
+                    package->get_from() = "Server";
+                    package->get_size() = package->get_content().size();
+                }else{
+                    return true;
+                }
+            }
+            else{
+                package->get_type() = ERR;
+                package->get_to() = "UnKnown";
+                package->get_content() = "User Not Login or Fake Username.";
+                package->get_from() = "Server";
+                package->get_size() = package->get_content().size();
             }
         }
-        if( i == max_users) return false;
-        else{
-            buffer = json.get_content();
+        case LOGIN : {
+            if(login(package->get_from(),package->get_content())){
+                package->get_content() = "Successfully Login. Enjoy!";
+                package->get_size() = package->get_content().size();
+                package->get_to() = package->get_from();
+                package->get_from() = "Server";
+            }else{
+                package->get_type() == ERR;
+                package->get_content() = "Wrong Username or Password.";
+                package->get_size() = package->get_content().size();
+                package->get_to() = "UnKnwon";
+                package->get_from() = "Server";
+            }
+        }
+        case GETONLINE : {
+            if(user && user->get_name() == package->get_from()){
+                package->get_content().clear();
+                for(auto x : online){
+                    package->get_content() += x.first;
+                    package->get_content() += "\\";
+                }
+                package->get_to() = package->get_from();
+                package->get_from() = "Server";
+                package->get_size() = package->get_content().size();
+            }
+            else{
+                package->get_type() = ERR;
+                package->get_to() = "UnKnown";
+                package->get_content() = "User Not Login or Fake Username.";
+                package->get_from() = "Server";
+                package->get_size() = package->get_content().size();
+            }
         }
     }
+    return true;
 }
 bool conn::process_write(){
-
+    if(package->get_from() == "Server"){
+        tofd = fd;
+    }else{
+        tofd = online[package->get_to()]->fd;
+    }
+    writeCache = package->Dump();
+    return true;
 }
 
 int conn::get_fd(){return fd;}
