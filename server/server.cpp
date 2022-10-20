@@ -1,6 +1,6 @@
 #include "server.h"
 
-const char* address = "42.194.203.220";
+const char* address = "127.0.0.1";
 const short port = 9999;
 
 
@@ -21,7 +21,13 @@ int main(){
     conn* conns = new conn[max_users];
     //epoll实例
     int epollfd = epoll_create(1024);
+    if(epollfd == -1){
+        perror("epoll_create");
+        exit(-1);
+    }
     conn::epollfd = epollfd;
+    user* huzhida = new user("huzhida","123");
+    user::users[huzhida->get_name()] = huzhida;
     //线程池初始化
     threadpool<conn>* pool = NULL;
     try{
@@ -30,15 +36,17 @@ int main(){
         perror("threadpool");
         exit(-1);
     }
+
     //epoll事件池
     epoll_event events[max_users];
-    //讲监听sock的事件添加至events
-    addEvent(epollfd,sockfd);
 
+    //监听sock的事件添加至events
+    addEvent(epollfd,sockfd);
+    
     while(1){
         //epoll_wait返回events中对应的触发事件的Index最大值
         int ret = epoll_wait(epollfd,events,max_users,-1);
-        if(ret == -1 || errno != EINTR){
+        if(ret == -1 || errno == EINTR){
             perror("epoll_wait");
             exit(-1);
         }
@@ -50,20 +58,27 @@ int main(){
                 sockaddr_in caddr;
                 socklen_t len = sizeof(caddr);
                 int connfd = accept(sockfd,(struct sockaddr*)&caddr,&len);
+                if(connfd == -1){
+                    perror("accept");
+                    exit(-1);
+                }
                 if(conn::conn_count >= max_users){
                     close(connfd);
                     continue;
                 }
                 //连接池初始化对应的客户端链接对象
+                cout << "初始化链接" <<endl; 
                 conns[connfd].init(connfd,&caddr);
             }else if(events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){
                 //触发的事件是 对方关闭链接 或 错误
                 conns[fd].close();
             }else if(events[i].events & EPOLLIN){
+                
                 //触发的事件是EPOLLIN 就是有信息输入需要读取
                 if(conns[fd].read()){
                     //如果读到了数据 线程池分一个线程来处理数据
                     pool->append(conns+fd);
+                    cout << "dddd" <<endl;
                 }else{
                     //如果读数据出错 关闭链接实例
                     conns[fd].close();
@@ -78,4 +93,6 @@ int main(){
         }
 
     }
+    delete []conns;
+    close(sockfd);
 }

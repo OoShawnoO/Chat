@@ -2,7 +2,7 @@
 #define CONN_H
 
 #include "user.h"
-#include "pack.h"
+#include "../pack.h"
 
 const int BUFSIZE = 2048;
 
@@ -17,7 +17,7 @@ private:
     int fd;
     int tofd;
     sockaddr_in address;
-    user* user;
+    user* m_user;
     char readBuf[BUFSIZE];
     char writeBuf[BUFSIZE];
     string readCache;
@@ -49,6 +49,8 @@ public:
 };
 
 int conn::conn_count = 0;
+int conn::epollfd = -1;
+unordered_map<string,conn*> conn::online;
 
 void nonblock(int fd){
     int old_flag = fcntl(fd,F_GETFL);
@@ -81,6 +83,7 @@ void conn::init(int _fd,sockaddr_in* caddr){
     fd = _fd;
     address = *caddr;
     conn_count++;
+    addEvent(epollfd,_fd);
     init();
 }
 void conn::init(){
@@ -93,15 +96,15 @@ void conn::init(){
     status = FREE;
     readCache.clear();
     writeCache.clear();
-    user = nullptr;
+    m_user = nullptr;
     if(package){
         delete package;
         package = nullptr;
     }
 }
 void conn::close(){
-    if(user){
-        online.erase(online.find(user->get_name()));
+    if(m_user){
+        online.erase(online.find(m_user->get_name()));
     }
     if(fd != -1){
         removeEvent(epollfd,fd);
@@ -110,17 +113,16 @@ void conn::close(){
     }
 }
 bool conn::login(string username,string password){
-    for(int i=0;i<user::user_count;i++){
-        if(user::users[i].get_name() == username && user::users[i].get_password() == password){
-            online[username] = this;
+    if(user::users.find(username) != user::users.end()){
+        if(user::users[username]->get_password() == password){
             return true;
         }
     }
     return false;
 }
 string conn::get_username(){
-    if(user){
-        return user->get_name();
+    if(m_user){
+        return m_user->get_name();
     }else{
         return NULL;
     }
@@ -176,7 +178,7 @@ bool conn::process_read(){
     package = new Pack(p);
     switch(package->get_type()){
         case MSG : {
-            if(user && user->get_name() == package->get_from()){
+            if(m_user && m_user->get_name() == package->get_from()){
                 string username = package->get_to();
                 if(online.find(username) == online.end()){
                     package->get_type() = ERR;
@@ -195,6 +197,7 @@ bool conn::process_read(){
                 package->get_from() = "Server";
                 package->get_size() = package->get_content().size();
             }
+            break;
         }
         case LOGIN : {
             if(login(package->get_from(),package->get_content())){
@@ -209,9 +212,10 @@ bool conn::process_read(){
                 package->get_to() = "UnKnwon";
                 package->get_from() = "Server";
             }
+            break;
         }
         case GETONLINE : {
-            if(user && user->get_name() == package->get_from()){
+            if(m_user && m_user->get_name() == package->get_from()){
                 package->get_content().clear();
                 for(auto x : online){
                     package->get_content() += x.first;
@@ -228,6 +232,7 @@ bool conn::process_read(){
                 package->get_from() = "Server";
                 package->get_size() = package->get_content().size();
             }
+            break;
         }
     }
     return true;
@@ -239,12 +244,12 @@ bool conn::process_write(){
         tofd = online[package->get_to()]->fd;
     }
     writeCache = package->Dump();
-    return true;
+    return write();
 }
 
 int conn::get_fd(){return fd;}
 sockaddr_in conn::get_address(){return address;}
-user* conn::get_user(){return user;}
+user* conn::get_user(){return m_user;}
 
 
 #endif

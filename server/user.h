@@ -21,7 +21,7 @@ private:
 
 public:
     static int user_count;
-    static user* users;
+    static unordered_map<string,user*> users;
     user(){}
     user(string _username,string _password){
         init(_username,_password);
@@ -37,8 +37,15 @@ public:
     string& get_password();
 };
 
+string& user::get_name(){
+    return name;
+}
+
+string& user::get_password(){
+    return password;
+}
+
 int user::user_count = 0;
-user* user::users = new user[max_users];
-user* huzhida = new user("huzhida","huzhida");
+unordered_map<string,user*> user::users;
 
 #endif
