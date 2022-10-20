@@ -83,6 +83,7 @@ void conn::init(int _fd,sockaddr_in* caddr){
     fd = _fd;
     address = *caddr;
     conn_count++;
+    m_user = nullptr;
     addEvent(epollfd,_fd);
     init();
 }
@@ -96,7 +97,6 @@ void conn::init(){
     status = FREE;
     readCache.clear();
     writeCache.clear();
-    m_user = nullptr;
     if(package){
         delete package;
         package = nullptr;
@@ -115,6 +115,8 @@ void conn::close(){
 bool conn::login(string username,string password){
     if(user::users.find(username) != user::users.end()){
         if(user::users[username]->get_password() == password){
+            m_user = user::users[username];
+            online[username] = this;
             return true;
         }
     }
@@ -162,6 +164,7 @@ bool conn::write(){
         writeIndex += bytesToSend;
         if(writeIndex >= writeCache.size()){
             modEvent(epollfd,fd,EPOLLIN);
+            init();
             return true;
         }
     }
@@ -215,6 +218,8 @@ bool conn::process_read(){
             break;
         }
         case GETONLINE : {
+            cout << "m_user 的 name : "  << m_user->get_name() <<endl;
+            cout << package->get_from() <<endl;
             if(m_user && m_user->get_name() == package->get_from()){
                 package->get_content().clear();
                 for(auto x : online){
@@ -244,7 +249,8 @@ bool conn::process_write(){
         tofd = online[package->get_to()]->fd;
     }
     writeCache = package->Dump();
-    return write();
+    modEvent(epollfd,fd,EPOLLOUT);
+    return true;
 }
 
 int conn::get_fd(){return fd;}

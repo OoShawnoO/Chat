@@ -27,7 +27,9 @@ int main(){
     }
     conn::epollfd = epollfd;
     user* huzhida = new user("huzhida","123");
+    user* renshukui = new user("renshukui","123");
     user::users[huzhida->get_name()] = huzhida;
+    user::users[renshukui->get_name()] = renshukui;
     //线程池初始化
     threadpool<conn>* pool = NULL;
     try{
@@ -78,16 +80,18 @@ int main(){
                 if(conns[fd].read()){
                     //如果读到了数据 线程池分一个线程来处理数据
                     pool->append(conns+fd);
-                    cout << "dddd" <<endl;
+                    cout << "线程池执行" <<endl;
                 }else{
                     //如果读数据出错 关闭链接实例
                     conns[fd].close();
+                    cout << "因 EPOLLIN 关闭" <<endl;
                 }
             }else if(events[i].events & EPOLLOUT){
                 //触发的事件是EPOLLOUT 就是有消息需要输出
                 if(!conns[fd].write()){
                     //大概是对方关闭链接 本地链接实例也关闭
                     conns[fd].close();
+                    cout << "因 EPOLLOUT 关闭" <<endl;
                 }
             }
         }
