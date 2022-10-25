@@ -27,6 +27,7 @@ public:
     string& get_name();
     string& get_password();
     Pack& get_pack();
+    bool& get_done();
 
 private:
     int fd;
@@ -34,6 +35,7 @@ private:
     string password;
     Pack pack;
     char buffer[1024];
+    bool done;
 };
 
 client::client(string _name,string _password):
@@ -102,6 +104,7 @@ bool client::getonline(){
 }
 
 bool client::message(string to,string content,TYPE type){
+    done = false;
     pack.get_from() = name;
     pack.get_to() = to;
     pack.get_type() = type;
@@ -117,8 +120,12 @@ bool client::message(string to,string content,TYPE type){
         }
         writeindex += ret;
     }
+    
     if(type != ACK){
-        readmsg();
+        while(done != true){
+            sleep(1);
+            cout << "wait" <<endl;
+        }
         if(pack.get_content() == "ok" && pack.get_type() == ACK){
            cout << "发送成功" <<endl;
         }
@@ -152,6 +159,10 @@ string& client::get_password(){
 
 Pack& client::get_pack(){
     return pack;
+}
+
+bool& client::get_done(){
+    return done;
 }
 
 #endif

@@ -30,6 +30,7 @@ public:
     Pack(const Pack& pack);
     string Dump();
     bool Load(string package);
+    void clear();
     int& get_size();
     VERSION& get_version();
     string& get_from();
@@ -95,6 +96,15 @@ bool Pack::Load(string package){
         }
     }
     return true;
+}
+
+void Pack::clear(){
+    version = STANDARD;
+    from = "";
+    to = "";
+    content = "";
+    size = 0;
+    type = ERR;
 }
 
 VERSION& Pack::get_version(){

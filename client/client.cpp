@@ -1,6 +1,23 @@
 #include "client.h"
 #include <thread>
 using namespace std;
+
+void READ(client& clt){
+    while(1){
+        clt.readmsg();
+        cout << clt.get_pack().Dump() <<endl;
+        if(clt.get_pack().get_type() != ACK){
+            Pack reply(clt.get_pack());
+            reply.get_to() = reply.get_from();
+            reply.get_content() = "ok";
+            reply.get_size() = sizeof(reply.get_content());
+            clt.message(reply.get_to(),reply.get_content(),ACK);
+        }else{
+            clt.get_done() = true;
+        }
+    }
+}
+
 int main(){
     string name;
     cout << "请输入用户名:";
@@ -10,6 +27,7 @@ int main(){
     while(1){
         if(clt.login()) break;
     }
+    thread t(READ,ref(clt));
     while(1){
         int flag = 0;
         cout << "请选择操作序号:";
@@ -28,21 +46,9 @@ int main(){
                 clt.message(name,"傻逼",MSG);
                 break;
             }
-
-            case 3 : {
-                clt.readmsg();
-                cout << clt.get_pack().Dump() <<endl;
-                if(clt.get_pack().get_type() != ACK){
-                    Pack reply(clt.get_pack());
-                    reply.get_to() = reply.get_from();
-                    reply.get_content() = "ok";
-                    reply.get_size() = sizeof(reply.get_content());
-                    clt.message(reply.get_to(),reply.get_content(),ACK);
-                }
-                break;
-            }
         default:
             break;
         }
     }
+    t.join();
 }
