@@ -14,6 +14,7 @@ enum TYPE{
     MSG = 0,
     LOGIN,
     GETONLINE,
+    ACK,
     ERR,
 };
 
@@ -26,6 +27,7 @@ public:
     }
 
     Pack(string package);
+    Pack(const Pack& pack);
     string Dump();
     bool Load(string package);
     int& get_size();
@@ -45,6 +47,15 @@ private:
 
 Pack::Pack(string package){
     Load(package);
+}
+
+Pack::Pack(const Pack& pack){
+    version = pack.version;
+    from = pack.from;
+    to = pack.to;
+    content = pack.content;
+    size = pack.size;
+    type = pack.type;
 }
 
 string Pack::Dump(){
@@ -79,8 +90,8 @@ bool Pack::Load(string package){
         else if(attr == "size") size = atoi(x.substr(pos+1).c_str());
         else if(attr == "content") content = x.substr(pos+1);
         else{
-            perror("Parse Error");
-            exit(-1);
+            cout << attr <<endl;
+            cout << "Parse Error" <<endl;
         }
     }
     return true;

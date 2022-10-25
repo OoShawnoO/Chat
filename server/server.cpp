@@ -69,7 +69,7 @@ int main(){
                     continue;
                 }
                 //连接池初始化对应的客户端链接对象
-                cout << "初始化链接" <<endl; 
+                cout << "----------初始化链接----------" <<endl; 
                 conns[connfd].init(connfd,&caddr);
             }else if(events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)){
                 //触发的事件是 对方关闭链接 或 错误
@@ -80,18 +80,18 @@ int main(){
                 if(conns[fd].read()){
                     //如果读到了数据 线程池分一个线程来处理数据
                     pool->append(conns+fd);
-                    cout << "线程池执行" <<endl;
+                    cout << "----------线程池执行----------" <<endl;
                 }else{
                     //如果读数据出错 关闭链接实例
                     conns[fd].close();
-                    cout << "因 EPOLLIN 关闭" <<endl;
+                    cout << "----------因 EPOLLIN 关闭----------" <<endl;
                 }
             }else if(events[i].events & EPOLLOUT){
                 //触发的事件是EPOLLOUT 就是有消息需要输出
                 if(!conns[fd].write()){
                     //大概是对方关闭链接 本地链接实例也关闭
                     conns[fd].close();
-                    cout << "因 EPOLLOUT 关闭" <<endl;
+                    cout << "----------因 EPOLLOUT 关闭----------" <<endl;
                 }
             }
         }

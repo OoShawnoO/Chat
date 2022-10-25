@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string>
+#include <fcntl.h>
 #include "../pack.h"
 #include <memory.h>
 
@@ -21,7 +22,8 @@ public:
     bool connect();
     bool login();
     bool getonline();
-    bool message(string to,string content);
+    bool message(string to,string content,TYPE type);
+    bool readmsg();
     string& get_name();
     string& get_password();
     Pack& get_pack();
@@ -54,6 +56,7 @@ bool client::connect(){
         perror("connect :");
         return false;
     }
+    
     return true;
 }
 bool client::login(){
@@ -98,26 +101,42 @@ bool client::getonline(){
     return true;
 }
 
-bool client::message(string to,string content){
+bool client::message(string to,string content,TYPE type){
     pack.get_from() = name;
     pack.get_to() = to;
-    pack.get_type() = MSG;
+    pack.get_type() = type;
     pack.get_content() = content;
     pack.get_size() = content.size();
     int writeindex = 0;
-    string readCache;
-    while(writeindex < pack.Dump().size()){
-        bzero(buffer,sizeof(buffer));
-        writeindex += write(fd,buffer,sizeof(buffer));
+    string x = pack.Dump();
+    while(writeindex < x.size()){
+        int ret = write(fd,x.substr(writeindex).c_str(),x.substr(writeindex).size());
+        if(ret == -1){
+            perror("message write");
+            exit(-1);
+        }
+        writeindex += ret;
     }
+    if(type != ACK){
+        readmsg();
+        if(pack.get_content() == "ok" && pack.get_type() == ACK){
+           cout << "发送成功" <<endl;
+        }
+    }
+    return true;
+}
+
+bool client::readmsg(){
+    string readCache;
     while(true){
+        bzero(buffer,sizeof(buffer));
         int ret = read(fd,buffer,sizeof(buffer));
         if(ret == -1){
-            if(errno == EAGAIN || errno == EWOULDBLOCK) break;
             perror("message read");
             return false;
         }
         readCache += buffer;
+        if(readCache.find("{") != string::npos && readCache.find("}")!=string::npos) break;
     }
     pack.Load(readCache);
     return true;

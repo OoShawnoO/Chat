@@ -175,70 +175,74 @@ void conn::process(){
     if(!process_write()) close();
 }
 bool conn::process_read(){
-    string p = readCache.substr(readCache.find_first_of("{"),readCache.find_first_of("}")+1);
-    readCache = readCache.substr(readCache.find_first_of("}")+1);
-
-    package = new Pack(p);
-    switch(package->get_type()){
-        case MSG : {
-            if(m_user && m_user->get_name() == package->get_from()){
-                string username = package->get_to();
-                if(online.find(username) == online.end()){
+    try{
+        string p = readCache.substr(readCache.find_first_of("{"),readCache.find_first_of("}")+1);
+        readCache = readCache.substr(readCache.find_first_of("}")+1);
+        package = new Pack(p);
+        switch(package->get_type()){
+            case MSG : {
+                if(m_user && m_user->get_name() == package->get_from()){
+                    string username = package->get_to();
+                    if(online.find(username) == online.end()){
+                        package->get_type() = ERR;
+                        package->get_to() = package->get_from();
+                        package->get_content() = "User Not OnLine or User Not Exist.";
+                        package->get_from() = "Server";
+                        package->get_size() = package->get_content().size();
+                    }else{
+                        return true;
+                    }
+                }
+                else{
                     package->get_type() = ERR;
-                    package->get_to() = package->get_from();
-                    package->get_content() = "User Not OnLine or User Not Exist.";
+                    package->get_to() = "UnKnown";
+                    package->get_content() = "User Not Login or Fake Username.";
                     package->get_from() = "Server";
                     package->get_size() = package->get_content().size();
+                }
+                break;
+            }
+            case LOGIN : {
+                if(login(package->get_from(),package->get_content())){
+                    package->get_content() = "Successfully Login. Enjoy!";
+                    package->get_size() = package->get_content().size();
+                    package->get_to() = package->get_from();
+                    package->get_from() = "Server";
                 }else{
-                    return true;
+                    package->get_type() == ERR;
+                    package->get_content() = "Wrong Username or Password.";
+                    package->get_size() = package->get_content().size();
+                    package->get_to() = "UnKnwon";
+                    package->get_from() = "Server";
                 }
+                break;
             }
-            else{
-                package->get_type() = ERR;
-                package->get_to() = "UnKnown";
-                package->get_content() = "User Not Login or Fake Username.";
-                package->get_from() = "Server";
-                package->get_size() = package->get_content().size();
-            }
-            break;
-        }
-        case LOGIN : {
-            if(login(package->get_from(),package->get_content())){
-                package->get_content() = "Successfully Login. Enjoy!";
-                package->get_size() = package->get_content().size();
-                package->get_to() = package->get_from();
-                package->get_from() = "Server";
-            }else{
-                package->get_type() == ERR;
-                package->get_content() = "Wrong Username or Password.";
-                package->get_size() = package->get_content().size();
-                package->get_to() = "UnKnwon";
-                package->get_from() = "Server";
-            }
-            break;
-        }
-        case GETONLINE : {
-            cout << "m_user 的 name : "  << m_user->get_name() <<endl;
-            cout << package->get_from() <<endl;
-            if(m_user && m_user->get_name() == package->get_from()){
-                package->get_content().clear();
-                for(auto x : online){
-                    package->get_content() += x.first;
-                    package->get_content() += "\\";
+            case GETONLINE : {
+                cout << "----------获取在线列表的用户:"  << m_user->get_name() << "----------" << endl;
+                cout << package->get_from() <<endl;
+                if(m_user && m_user->get_name() == package->get_from()){
+                    package->get_content().clear();
+                    for(auto x : online){
+                        package->get_content() += x.first;
+                        package->get_content() += "\\";
+                    }
+                    package->get_to() = package->get_from();
+                    package->get_from() = "Server";
+                    package->get_size() = package->get_content().size();
                 }
-                package->get_to() = package->get_from();
-                package->get_from() = "Server";
-                package->get_size() = package->get_content().size();
+                else{
+                    package->get_type() = ERR;
+                    package->get_to() = "UnKnown";
+                    package->get_content() = "User Not Login or Fake Username.";
+                    package->get_from() = "Server";
+                    package->get_size() = package->get_content().size();
+                }
+                break;
             }
-            else{
-                package->get_type() = ERR;
-                package->get_to() = "UnKnown";
-                package->get_content() = "User Not Login or Fake Username.";
-                package->get_from() = "Server";
-                package->get_size() = package->get_content().size();
-            }
-            break;
         }
+    }catch(...){
+        cout << "wrong" << endl;
+        exit(-1);
     }
     return true;
 }
