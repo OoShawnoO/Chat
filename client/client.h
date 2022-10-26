@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include "../pack.h"
 #include <memory.h>
+#include <thread>
 
 const char* address = "127.0.0.1";
 const short port = 9999;
@@ -28,6 +29,8 @@ public:
     string& get_password();
     Pack& get_pack();
     bool& get_done();
+    bool& get_logined();
+    static void READ(client&);
 
 private:
     int fd;
@@ -36,15 +39,22 @@ private:
     Pack pack;
     char buffer[1024];
     bool done;
+    bool logined;
+    thread* t;
 };
 
 client::client(string _name,string _password):
 name(_name),password(_password),pack(Pack(STANDARD,name,"Server",password,LOGIN))
 {
+    logined = false;
+    t = new thread(READ,ref(*this));
     fd = -1;
     bzero(buffer,sizeof(buffer));
 }
 client::~client(){
+    if(t){
+        delete t;
+    }
     close(fd);
 }
 bool client::connect(){
@@ -67,43 +77,33 @@ bool client::login(){
     pack.get_type() = LOGIN;
     pack.get_content() = password;
     pack.get_size() = password.size();
-    write(fd,pack.Dump().c_str(),pack.Dump().size());
-    int ret = read(fd,buffer,sizeof(buffer));
+    int ret = write(fd,pack.Dump().c_str(),pack.Dump().size());
     if(ret == -1){
-        perror("login read");
+        perror("login write");
         return false;
     }
-    pack.Load(buffer);
-    bzero(buffer,sizeof(buffer));
-    if(pack.get_type() != LOGIN){
-        cout << pack.get_content() <<endl;
-        return false;
-    }
+    sleep(1);
+    if(logined != true) return false;
     return true;
 }
 
 bool client::getonline(){
+    if(logined == false) return false;
     pack.get_from() = name;
     pack.get_to() = "Server";
     pack.get_type() = GETONLINE;
     pack.get_content().clear();
     pack.get_size() = 0;
-    write(fd,pack.Dump().c_str(),pack.Dump().size());
-    int ret = read(fd,buffer,sizeof(buffer));
+    int ret = write(fd,pack.Dump().c_str(),pack.Dump().size());
     if(ret == -1){
-        perror("getonline read");
-        return false;
-    }
-    pack.Load(buffer);
-    bzero(buffer,sizeof(buffer));
-    if(pack.get_type() != GETONLINE){
-        cout << pack.get_content() << endl;
+        perror("getonline write");
         return false;
     }
     return true;
 }
 
 bool client::message(string to,string content,TYPE type){
+    if(logined == false) return false;
     done = false;
     pack.get_from() = name;
     pack.get_to() = to;
@@ -123,8 +123,6 @@ bool client::message(string to,string content,TYPE type){
     
     if(type != ACK){
         while(done != true){
-            sleep(1);
-            cout << "wait" <<endl;
         }
         if(pack.get_content() == "ok" && pack.get_type() == ACK){
            cout << "发送成功" <<endl;
@@ -149,6 +147,31 @@ bool client::readmsg(){
     return true;
 }
 
+void client::READ(client& clt){
+    while(1){
+        clt.readmsg();
+        cout << clt.get_pack().Dump() <<endl;
+        TYPE types = clt.get_pack().get_type();
+        if(types == MSG){
+            Pack reply(clt.get_pack());
+            reply.get_to() = reply.get_from();
+            reply.get_content() = "ok";
+            reply.get_size() = sizeof(reply.get_content());
+            clt.message(reply.get_to(),reply.get_content(),ACK);
+        }
+        else if(types == ACK){
+            clt.get_done() = true;
+        }
+        else if(types == GETONLINE){
+
+        }else if(types == ERR){
+
+        }else if(types == LOGIN){
+            clt.logined = true;
+        }
+    }
+}
+
 string& client::get_name(){
     return name;
 }
@@ -163,6 +186,10 @@ Pack& client::get_pack(){
 
 bool& client::get_done(){
     return done;
+}
+
+bool& client::get_logined(){
+    return logined;
 }
 
 #endif

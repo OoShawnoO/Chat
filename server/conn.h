@@ -218,8 +218,7 @@ bool conn::process_read(){
                 break;
             }
             case GETONLINE : {
-                cout << "----------获取在线列表的用户:"  << m_user->get_name() << "----------" << endl;
-                cout << package->get_from() <<endl;
+                cout << "--获取在线列表的用户:"  << m_user->get_name() << "--" << endl;
                 if(m_user && m_user->get_name() == package->get_from()){
                     package->get_content().clear();
                     for(auto x : online){
@@ -250,6 +249,7 @@ bool conn::process_write(){
     if(package->get_from() == "Server"){
         tofd = fd;
     }else{
+        if(online.find(package->get_to()) == online.end()) return false;
         tofd = online[package->get_to()]->fd;
     }
     writeCache = package->Dump();

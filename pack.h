@@ -74,6 +74,7 @@ string Pack::Dump(){
 bool Pack::Load(string package){
     int pos = 0,site = 0;
     vector<string> v;
+    if(package.size() < 2){return false;}
     package = package.substr(1,package.size()-2);
     while(package.find_first_of("\r\n",pos) != string::npos && pos < package.size()){
         site = package.find_first_of("\r\n",pos);
@@ -83,6 +84,7 @@ bool Pack::Load(string package){
     if(v.size() == 0) return false;
     for(auto x : v){
         pos = x.find(":");
+        if(pos == string::npos) return false;
         string attr = x.substr(0,pos);
         if(attr == "version") version = static_cast<VERSION>(atoi(x.substr(pos+1).c_str()));
         else if(attr == "type") type = static_cast<TYPE>(atoi(x.substr(pos+1).c_str()));
