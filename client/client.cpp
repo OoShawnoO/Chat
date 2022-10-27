@@ -29,7 +29,7 @@ int main(){
             case 2 : {
                 cout << "请输入发送信息给谁:";
                 cin >> name;
-                if(!clt.message(name,"傻逼",MSG)){
+                if(!clt.message(name,"clown",MSG)){
                     cout << "发送失败" <<endl;
                 }
                 break;

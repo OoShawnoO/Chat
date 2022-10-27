@@ -31,7 +31,6 @@ public:
     bool& get_done();
     bool& get_logined();
     static void READ(client&);
-
 private:
     int fd;
     string name;
@@ -150,9 +149,10 @@ bool client::readmsg(){
 void client::READ(client& clt){
     while(1){
         clt.readmsg();
-        cout << clt.get_pack().Dump() <<endl;
+        // cout << clt.get_pack().Dump() <<endl;
         TYPE types = clt.get_pack().get_type();
         if(types == MSG){
+            cout << clt.pack.get_from() << "发送信息:" << clt.pack.get_content() << endl;
             Pack reply(clt.get_pack());
             reply.get_to() = reply.get_from();
             reply.get_content() = "ok";
@@ -163,9 +163,9 @@ void client::READ(client& clt){
             clt.get_done() = true;
         }
         else if(types == GETONLINE){
-
+            cout << "在线列表:" << clt.pack.get_content() <<endl;
         }else if(types == ERR){
-
+            cout << clt.pack.get_content() << endl;
         }else if(types == LOGIN){
             clt.logined = true;
         }
