@@ -121,10 +121,13 @@ bool client::message(string to,string content,TYPE type){
     }
     
     if(type != ACK){
-        while(done != true){
+        while(done != true && pack.get_type() != ERR){
         }
         if(pack.get_content() == "ok" && pack.get_type() == ACK){
            cout << "发送成功" <<endl;
+           return true;
+        }else{
+            return false;
         }
     }
     return true;
@@ -138,6 +141,9 @@ bool client::readmsg(){
         if(ret == -1){
             perror("message read");
             return false;
+        }else if(ret == 0){
+            close(fd);
+            exit(-1);
         }
         readCache += buffer;
         if(readCache.find("{") != string::npos && readCache.find("}")!=string::npos) break;

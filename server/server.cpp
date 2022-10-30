@@ -3,6 +3,8 @@
 const char* address = "127.0.0.1";
 const short port = 9999;
 
+const char* redis_ip = "127.0.0.1";
+int redis_port = 6379;
 
 int main(){
     //监听sock的创建
@@ -26,10 +28,7 @@ int main(){
         exit(-1);
     }
     conn::epollfd = epollfd;
-    user* huzhida = new user("huzhida","123");
-    user* renshukui = new user("renshukui","123");
-    user::users[huzhida->get_name()] = huzhida;
-    user::users[renshukui->get_name()] = renshukui;
+    redis::Connect(redis_ip,redis_port);
     //线程池初始化
     threadpool<conn>* pool = NULL;
     try{
@@ -98,5 +97,6 @@ int main(){
 
     }
     delete []conns;
+    redis::FreeContext();
     close(sockfd);
 }

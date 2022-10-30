@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fcntl.h>
 #include <unordered_map>
+#include "redis.h"
 
 using namespace std;
 const int max_users = 10000;
@@ -21,7 +22,6 @@ private:
 
 public:
     static int user_count;
-    static unordered_map<string,user*> users;
     user(){}
     user(string _username,string _password){
         init(_username,_password);
@@ -46,6 +46,5 @@ string& user::get_password(){
 }
 
 int user::user_count = 0;
-unordered_map<string,user*> user::users;
 
 #endif

@@ -113,14 +113,27 @@ void conn::close(){
     }
 }
 bool conn::login(string username,string password){
-    if(user::users.find(username) != user::users.end()){
-        if(user::users[username]->get_password() == password){
-            m_user = user::users[username];
+    // if(user::users.find(username) != user::users.end()){
+    //     if(user::users[username]->get_password() == password){
+    //         m_user = user::users[username];
+    //         online[username] = this;
+    //         return true;
+    //     }
+    // }
+    // return false;
+    if(redis::exist(username)){
+        if(redis::get(username) == password){
+            m_user = new user(username,password);
             online[username] = this;
+            cout << "!!!!!!!!!!!" <<endl;
             return true;
         }
+        else{
+            return false;
+        }
+    }else{
+        return false;
     }
-    return false;
 }
 string conn::get_username(){
     if(m_user){
@@ -209,7 +222,7 @@ bool conn::process_read(){
                     package->get_to() = package->get_from();
                     package->get_from() = "Server";
                 }else{
-                    package->get_type() == ERR;
+                    package->get_type() = ERR;
                     package->get_content() = "Wrong Username or Password.";
                     package->get_size() = package->get_content().size();
                     package->get_to() = "UnKnwon";
@@ -218,8 +231,8 @@ bool conn::process_read(){
                 break;
             }
             case GETONLINE : {
-                cout << "--获取在线列表的用户:"  << m_user->get_name() << "--" << endl;
                 if(m_user && m_user->get_name() == package->get_from()){
+                    cout << "--获取在线列表的用户:"  << m_user->get_name() << "--" << endl;
                     package->get_content().clear();
                     for(auto x : online){
                         package->get_content() += x.first;
