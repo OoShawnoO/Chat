@@ -104,6 +104,7 @@ void conn::init(){
 }
 void conn::close(){
     if(m_user){
+        cout << "----------用户" << this->get_username() << "登出----------" <<endl;
         online.erase(online.find(m_user->get_name()));
     }
     if(fd != -1){
@@ -125,7 +126,6 @@ bool conn::login(string username,string password){
         if(redis::get(username) == password){
             m_user = new user(username,password);
             online[username] = this;
-            cout << "!!!!!!!!!!!" <<endl;
             return true;
         }
         else{
